@@ -158,3 +158,201 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+import os.path
+print("***************")
+print("\tWelcome to Women Safety Application")
+print("***************")
+no1 = "9392752654"
+n = "+91"
+no2 = ""
+import json
+
+def details():
+    name = input("Enter Name : ")
+    gender = input("Enter Gender : ")
+    print("Note: Registered phone cannot be changed")
+    no1 = input("Enter Primary contact no : ")
+    e_name = input("Enter Emergency Contact Name : ")
+    no2 = input("Enter Emergency Contact no  : ")
+    print("Verify your details once")
+    print(name)
+    print(gender)
+    print(no1)
+
+    input_data = dict()
+    input_data['name'] = name
+    input_data['gender'] = gender
+    input_data['phone'] = no1
+    input_data['emergency_name'] = e_name
+    input_data['emergency'] = no2
+    save_details(input_data = input_data)
+    print("Login created successfully. Please login with your registered mobile number only.")
+
+    welcome()
+
+def save_details(input_data):
+    with open(os.path.join(os.getcwd(), "saved_contacts","{}.txt".format(str(input_data['phone']))), "w+") as outfile:
+        json.dump(input_data, outfile)
+    print("Details saved successfully")
+    return None
+
+def get_details(phone_no):
+    with open(os.path.join(os.getcwd(), "saved_contacts","{}.txt".format(str(phone_no))), "r") as outfile:
+        output_data = json.loads(outfile.read())
+    print("Details fetched are")
+    print_details(user_details=output_data)
+    return output_data
+
+def login(user_details, relogin = False):
+    if relogin:
+        phone_no = input("Please enter your registered phone number: ")
+        user_details = get_details(phone_no=phone_no)
+    mode = input("Press any key to send panic message\nPress 9 to modify your details\nPress 0 to exit\n ")
+    call_mode(mode = mode, user_details = user_details)
+
+def print_details(user_details):
+    print("####################################################")
+    print("Name:                    ", user_details['name'])
+    print("Gender:                  ", user_details['gender'])
+    print("Phone No:                ", user_details['phone'])
+    print("Emergency Name:          ", user_details['emergency_name'])
+    print("Emergency Contact No:    ", user_details['emergency'])
+    print("####################################################")
+
+def call_mode(mode, user_details):
+
+    if mode == '0':
+        print("Exiting the program")
+        exit()
+    elif mode == '9':
+        modify(details=user_details)
+        login(user_details=user_details, relogin = False)
+    else:
+        panic(details=user_details)
+
+
+def modify(details):
+    output = details
+    changeStatus = True
+    while changeStatus:
+        print("Enter the details you want to change : ")
+        change = input("1-Name\n2-Gender\n3-Emergency Name\n4-Emergency Phone\n ")
+        if change == '1':
+            value = input("Enter modified name: ")
+            output['name'] = value
+        elif change == '2':
+            value = input("Enter Gender: ")
+            output['gender'] = value
+        elif change == '3':
+            value = input("Enter emergency name: ")
+            output['emergency_name'] = value
+        elif change == '4':
+            value = input("Enter emergency phone number: ")
+            output['emergency'] = value
+        else:
+            print("Change of Mind!!!")
+            changeStatus = False
+
+        change_complete = input("Are your changes complete - Yes/No: ")
+
+        if change_complete in ["yes", 'Yes','y',"Y", 1]:
+            print("All modifications are complete")
+            changeStatus = False
+
+
+        else:
+            changeStatus = True
+    save_details(input_data=output)
+    print_details(user_details=output)
+
+def panic(details):
+    import phonenumbers
+    import folium
+    from phonenumbers import geocoder
+    Key = "6e79ecad88c84ffcb8a3c0ad8649614f"
+    no1 = details['phone']
+    no3 = n + no1
+    print("Registered No: ",no3)
+    MobileNumber = phonenumbers.parse(no3)
+    yourLocation = geocoder.description_for_number(MobileNumber, "en")
+
+    print(yourLocation)
+
+    from phonenumbers import carrier
+    service_provider = phonenumbers.parse(no3)
+    print(carrier.name_for_number(service_provider, "en"))
+
+    from opencage.geocoder import OpenCageGeocode
+    geocoder = OpenCageGeocode(Key)
+    query = str(yourLocation)
+    results = geocoder.geocode(query)
+    lat = results[0]['geometry']['lat']
+    lng = results[0]['geometry']['lng']
+    print('Latitude  : ', lat)
+    print('Longitude : ', lng)
+    myMap = folium.Map(location=[lat, lng], zoom_start=9)
+    folium.Marker([lat, lng], popup=yourLocation).add_to((myMap))
+    myMap.save("myLocation.html")
+    details['lat'] = lat
+    details['lng'] = lng
+    message(details=details)
+
+
+def message(details):
+    import requests
+    import json
+
+    print("your emergency no: ",details['emergency'])
+    k = details['emergency']
+
+    # mention url
+    url = "https://www.fast2sms.com/dev/bulk"
+
+    # create a dictionary
+    my_data = {
+        # Your default Sender ID
+        'sender_id': 'FSTSMS',
+
+        # Put your message here!
+        'message': 'Hi {}, I am in danger help me out!!\n https://www.google.com/maps/@{},{},15z \n- {}'.format(
+            details['emergency_name'],details['lat'], details['lng'], details['name']),
+
+        'language': 'english',
+        'route': 'p',
+
+        # You can send sms to multiple numbers
+        # separated by comma.
+        'numbers': k
+    }
+
+    # create a dictionary
+    headers = {
+        'authorization': 'HEWFfNeJ5CDmGIln1UtkgKcyRvYOob4h2BzM8pdi36SZV0xwrajUJKsg8LQ1khv20mDwfrXbRCp7S5Pl',
+        'Content-Type': "application/x-www-form-urlencoded",
+        'Cache-Control': "no-cache"
+    }
+
+    # make a post request
+    response = requests.request("POST",
+                                url,
+                                data=my_data,
+                                headers=headers)
+
+    # load_json_data from source
+    returned_msg = json.loads(response.text)
+
+    # print the send message
+    print(returned_msg['message'])
+
+
+def welcome():
+    print("Press '1' for New User Login, Press '2' for Existing User Login")
+    print("1.New User Login(1)\n2.Existing User Login(2)")
+    choice = input()
+
+    if (choice == '1'):
+        details()
+    if (choice == '2'):
+        login(user_details= None, relogin=True)
+
+welcome()
